@@ -9,7 +9,7 @@ os.environ['https_proxy'] = ''
 # NOTE: a bug in dateutil package that boto3 uses was fixed by using:        https://stackoverflow.com/a/43688152/5992714
 
 class dyanamoOps:
-    logging.basicConfig(level=logging.WARN)  # class variables
+    logging.basicConfig(level=logging.INFO)  # class variables
     logger = logging.getLogger(__name__)
 
     def __init__(self, tableName='table1'):
@@ -194,7 +194,7 @@ class dyanamoOps:
                     res = self.client.scan(TableName=self.tableName)
                 except:
                     self.logger.exception(" Table \"{}\" exception occured while selecting data".format(self.tableName))
-                    sys.exit()
+                    #sys.exit()
                 #
                 self.logger.info(" Table \"{}\" data selected".format(self.tableName))
                 print(res['Items'])
@@ -204,22 +204,22 @@ class dyanamoOps:
                     iter_data = iter(data.split(','))
                     kv_data = dict(zip(iter_data, iter_data))
                     res = table.get_item(Key=kv_data)
+                    self.logger.info(" Table \"{}\" data selected".format(self.tableName))
+                    if (res.keys().__contains__('Item')):
+                        print(res['Item'])
+                        return res['Item']
+                    else:
+                        print({})
+                        return
                 except:
                     self.logger.exception(" Table \"{}\" exception occured while selecting data".format(self.tableName))
-                    sys.exit()
-                #
-                self.logger.info(" Table \"{}\" data selected".format(self.tableName))
-                if (res.keys().__contains__('Item')):
-                    print(res['Item'])
-                    return res['Item']
-                else:
-                    print({})
-                    return
+                    #sys.exit()
         else:
             self.logger.exception(" Table \"{}\" does not exist".format(self.tableName))
 
 
 def run(argv):
+    #print(argv)
     if len(argv) >= 1:
         if len(argv) == 1:
             if argv[0] == 'list':
