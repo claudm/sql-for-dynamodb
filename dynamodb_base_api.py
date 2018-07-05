@@ -32,7 +32,7 @@ class dyanamoOps:
     def help():
         print("""
             usage: 
-                1. python dynamoDbAPI.py help|list|<tableName> [create [1|2,pk,[S|N|BOOL...],sk,[S|N|BOOL...]] | drop | insert <pk,'1',sk,1,col1,'val1',col2,val2> | select [pk,<val1>[,sk,<val2>] | ]]
+                1. python dynamodb_base_api.py help|list|<tableName> [create [1|2,pk,[S|N|BOOL...],sk,[S|N|BOOL...]] | drop | insert <pk,'1',sk,1,col1,'val1',col2,val2> | select [pk,<val1>[,sk,<val2>] | ]]
                 2. import dynamoDbConnect
                    dynamoDbConnect.run([ 'help|list|<tableName>',[create,[1|2,pk,sk] | drop | insert,<pk,'1',sk,1,col1,'val1',col2,val2> | select,[pk,<val1>[,sk,<val2>] | ]])
         """
@@ -205,7 +205,9 @@ class dyanamoOps:
             else:
                 try:
                     iter_data = iter(data.split(','))
-                    kv_data = dict(zip(iter_data, iter_data))
+                    kv_data_all_string = dict(zip(iter_data, iter_data))
+                    kv_data = dict(zip(kv_data_all_string.keys(),
+                           [Decimal(x) if not x.__contains__("'") else x for x in kv_data_all_string.values()]))
                     res = table.get_item(Key=kv_data)
                     self.logger.info(" Table \"{}\" data selected".format(self.tableName))
                     if (res.keys().__contains__('Item')):
