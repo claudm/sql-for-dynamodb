@@ -1,4 +1,4 @@
-from dynamodb import dynamoDbConnect
+from dynamodb import dynamoDbAPI
 import sys, os, logging
 
 logging.basicConfig(level=logging.WARN)
@@ -13,7 +13,7 @@ def setup():
     endpoint_url = {'endpoint_url': input('Enter endpoint_url ')}
     dict_kwargs = {**region_name, **aws_access_key_id, **aws_access_key_id, **endpoint_url}
     dict_nonEmpty_kwargs = {k:v for k,v in dict_kwargs.items() if v != ''}
-    dynamoDbConnect.dyanamoOps.setup(**dict_nonEmpty_kwargs)
+    dynamoDbAPI.dyanamoOps.setup(**dict_nonEmpty_kwargs)
     os.system('cls')
     #os.system('clear')
 
@@ -21,7 +21,7 @@ def setup():
 def runCommand():
     user_input = input('Type command [or help or exit] here \n')
     if user_input != 'exit':
-        dynamoDbConnect.run(user_input.split(' '))
+        dynamoDbAPI.run(user_input.split(' '))
     return user_input
 
 
@@ -32,6 +32,8 @@ def runSqlHelp():
         - to select all items from tables
                 'select * from <table>;'
                 'select * from <table> where k1=1 and k2 = 2'
+        - to insert values
+                'insert into <table> (k1,k2,k3) values ('v1', v2, v3) 
         - to exit
                 'exit;' 
         - to view help
@@ -44,7 +46,7 @@ def runSqlAPI(sql_api_input):
     Used to take input from the API and call runSql
     """
     l_sql_api_input = sql_api_input.split(' ')
-    runSql(l_sql_api_input)
+    return runSql(l_sql_api_input)
 
 
 def runSqlREPL():
@@ -58,22 +60,36 @@ def runSqlREPL():
 
 
 def runSql(l_sql_user_input=[]):
+    l_sql_user_input = [x.lower() for x in l_sql_user_input]
     if l_sql_user_input.__contains__('help'):   # help
         runSqlHelp()
     elif l_sql_user_input[0] == 'show' and l_sql_user_input[1] == 'tables': # show tables
-        dynamoDbConnect.run(['list'])
-    elif l_sql_user_input[0] == 'select' and l_sql_user_input[2] == 'from':
+        return dynamoDbAPI.run(['list'])
+    elif l_sql_user_input[0] == 'select' and l_sql_user_input[2] == 'from': # select
         l_parsed_text = []
         if len(l_sql_user_input) == 4 and l_sql_user_input[1] == '*':   # select * from table1
             l_parsed_text = [l_sql_user_input[3], 'select']
-        else:                                                           # select * from table1 where a=1 and b=2
-            predicates = ''.join(l_sql_user_input[5:]).replace(' ','')               # a=1andb=2
-            parsed_predicates = predicates.replace('=', ',').replace('and', ',')            # a,1,b,2
+        else:                                                           # select * from table1 where a='x' and b=2
+            predicates = ''.join(l_sql_user_input[5:]).replace(' ','')               # a='x'andb=2
+            parsed_predicates = predicates.replace('=', ',').replace('and', ',')            # a,1,b,2       !!am here --- provision for single quots in wherre clause
             l_parsed_text = [l_sql_user_input[3], 'select', parsed_predicates]
         try:
-            #print (parsed_text.split(' '))
-            #dynamoDbConnect.run(parsed_text.split(' '))
-            dynamoDbConnect.run(l_parsed_text)
+            return dynamoDbAPI.run(l_parsed_text)
+        except:
+            logger.exception(" Unable to understand input. Type help if unsure.")
+    elif l_sql_user_input[0] == 'insert' and l_sql_user_input[1] == 'into' and l_sql_user_input[4] == 'values': # insert into table1 (pk,sk,col1) values ('a','b','c')
+        l_parsed_text = []
+        l_cols = [x.strip() for x in l_sql_user_input[3].replace('(','').replace(')','').split(',')]
+        l_vals = [x.strip() for x in l_sql_user_input[5].replace('(','').replace(')','').split(',')]
+        l_parsed_col_vol = []
+        for x in range(0,len(l_cols)):
+            l_parsed_col_vol.append(l_cols[x])
+            l_parsed_col_vol.append(l_vals[x])
+        parsed_col_vol = ','.join(l_parsed_col_vol)
+        l_parsed_text = [l_sql_user_input[2], 'insert', parsed_col_vol]
+        print (l_parsed_text)
+        try:
+            return dynamoDbAPI.run(l_parsed_text)
         except:
             logger.exception(" Unable to understand input. Type help if unsure.")
     else:
@@ -82,15 +98,15 @@ def runSql(l_sql_user_input=[]):
 
 def run(argv):
     #setup()                                !!!!!!!!!!!!!!!!!!! uncomment before going live!
-    dynamoDbConnect.dyanamoOps.setup()  #   !!!!!!!!!!!!    comment this
+    dynamoDbAPI.dyanamoOps.setup()  #   !!!!!!!!!!!!    comment this
     user_input = ''
-    if argv == '':
+    if argv.__len__() == 0:
         user_input = input("""
             Enter 1 for command based input
             Enter 2 for sql based input    
         """)
     else:
-        user_input = '2'
+        user_input = 2
     if user_input == '1':
         # command based api
         while user_input != 'exit':

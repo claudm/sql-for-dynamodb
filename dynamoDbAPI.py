@@ -2,6 +2,7 @@ import boto3
 import os
 import logging
 import sys
+from decimal import *
 
 os.environ['http_proxy'] = ''
 os.environ['https_proxy'] = ''
@@ -9,7 +10,7 @@ os.environ['https_proxy'] = ''
 # NOTE: a bug in dateutil package that boto3 uses was fixed by using:        https://stackoverflow.com/a/43688152/5992714
 
 class dyanamoOps:
-    logging.basicConfig(level=logging.INFO)  # class variables
+    logging.basicConfig(level=logging.WARNING)  # class variables
     logger = logging.getLogger(__name__)
 
     def __init__(self, tableName='table1'):
@@ -31,20 +32,22 @@ class dyanamoOps:
     def help():
         print("""
             usage: 
-                1. python dynamoDbConnect.py help|list|<tableName> [create [1|2,pk,[S|N|BOOL...],sk,[S|N|BOOL...]] | truncate | insert <pk,1,sk,1,col1,val1,col2,val2> | select [pk,<val1>[,sk,<val2>] | ]]
+                1. python dynamoDbAPI.py help|list|<tableName> [create [1|2,pk,[S|N|BOOL...],sk,[S|N|BOOL...]] | drop | insert <pk,'1',sk,1,col1,'val1',col2,val2> | select [pk,<val1>[,sk,<val2>] | ]]
                 2. import dynamoDbConnect
-                   dynamoDbConnect.run([ 'help|list|<tableName>',[create,[1|2,pk,sk] | truncate | insert,<pk,1,sk,1,col1,val1,col2,val2> | select,[pk,<val1>[,sk,<val2>] | ]])
+                   dynamoDbConnect.run([ 'help|list|<tableName>',[create,[1|2,pk,sk] | drop | insert,<pk,'1',sk,1,col1,'val1',col2,val2> | select,[pk,<val1>[,sk,<val2>] | ]])
         """
               )
 
     @classmethod
-    def listTables(cls):
+    def listTables(cls, is_print=False):
         l_tables = cls.client.list_tables()
         cls.logger.info(" List of tables= " + " ".join(l_tables['TableNames']))
+        if is_print == True:
+            print("List of tables= \n" + "\n".join(l_tables))
         return (l_tables['TableNames'])
 
     @classmethod
-    def describeTables(cls, tableName=''):
+    def describeTables(cls, tableName='', is_print=False):
         if tableName == '':
             l_tables = cls.client.list_tables()
         else:
@@ -84,14 +87,9 @@ class dyanamoOps:
         d_tables_describe = {}
         for k, v in dict_tables_attrName.items():
             d_tables_describe[k] = [v, dict_tables_attrType.get(k, None), dict_tables_keyType.get(k, None)]
-
-        print(str(d_tables_describe))
-        return (d_tables_describe)
-
-    @staticmethod
-    def printTables():
-        # print("List of tables= " + str(dyanamoOps.listTables()))
-        print("List of tables= \n" + "\n".join(dyanamoOps.listTables()))
+        if is_print==True:
+            print(str(d_tables_describe))
+        return d_tables_describe
 
     def createTable(self, type='2', pkName='pk', pkType='S', skName='sk', skType='S'):
         if not dyanamoOps.listTables().__contains__(self.tableName):
@@ -151,12 +149,12 @@ class dyanamoOps:
                 #self.logger.warning(" Table {} created, with dateutil error".format(self.tableName))
                 self.logger.exception(" Table {} creating failed".format(self.tableName))
             finally:
-                dyanamoOps.listTables()
-                return
+                #dyanamoOps.listTables()
+                return self.tableName
         else:
-            self.logger.warn(" Table \"{}\" already exists".format(self.tableName))
+            self.logger.warning(" Table \"{}\" already exists".format(self.tableName))
 
-    def truncateTable(self):
+    def dropTable(self):
         if dyanamoOps.listTables().__contains__(self.tableName):
             try:
                 self.logger.info(" Table {} deletion in progress".format(self.tableName))
@@ -167,15 +165,19 @@ class dyanamoOps:
                 #self.logger.warn(" Table {} deleted, with dateutil error".format(self.tableName))
                 self.logger.exception(" Table {} deletion failed".format(self.tableName))
             finally:
-                dyanamoOps.listTables()
-                return
+                #dyanamoOps.listTables()
+                return self.tableName
         else:
             self.logger.warn(" Table \"{}\" does not exist".format(self.tableName))
 
     def insertTable(self, l_data):
         table = self.resource.Table(self.tableName)
         iter_data = iter(l_data)
-        kv_data = dict(zip(iter_data, iter_data))
+        kv_data_all_string = dict(zip(iter_data, iter_data))
+        kv_data = dict(zip(kv_data_all_string.keys(),
+                           [Decimal(x) if not x.__contains__("'") else x for x in kv_data_all_string.values()]   ))
+        #print(kv_data_all_string)
+        #print(kv_data)
         try:
             table.put_item(
                 Item=kv_data
@@ -184,9 +186,9 @@ class dyanamoOps:
             self.logger.exception(" Table \"{}\" exception occured while inserting data".format(self.tableName))
             exit()
         self.logger.info(" Table \"{}\" inserted".format(self.tableName))
-        return
+        return self.tableName
 
-    def selectTable(self, data=''):
+    def selectTable(self, data='', isPrint=False):
         table = self.resource.Table(self.tableName)
         if dyanamoOps.listTables().__contains__(self.tableName):
             if data == '':
@@ -197,7 +199,8 @@ class dyanamoOps:
                     #sys.exit()
                 #
                 self.logger.info(" Table \"{}\" data selected".format(self.tableName))
-                print(res['Items'])
+                if isPrint == True:
+                    print(res['Items'])
                 return res['Items']
             else:
                 try:
@@ -206,11 +209,13 @@ class dyanamoOps:
                     res = table.get_item(Key=kv_data)
                     self.logger.info(" Table \"{}\" data selected".format(self.tableName))
                     if (res.keys().__contains__('Item')):
-                        print(res['Item'])
+                        if isPrint == True:
+                            print(res['Item'])
                         return res['Item']
                     else:
-                        print({})
-                        return
+                        if isPrint == True:
+                            print({})
+                        return [{}]
                 except:
                     self.logger.exception(" Table \"{}\" exception occured while selecting data".format(self.tableName))
                     #sys.exit()
@@ -223,7 +228,7 @@ def run(argv):
     if len(argv) >= 1:
         if len(argv) == 1:
             if argv[0] == 'list':
-                dyanamoOps.printTables()
+                return (dyanamoOps.listTables())
             elif argv[0] == 'help':
                 dyanamoOps.help()
             else:
@@ -233,24 +238,24 @@ def run(argv):
             if len(argv) >= 2:
                 if argv[1] == 'describe':
                     tbl.logger.info(" Table {} will be described now".format(tbl.tableName))
-                    dyanamoOps.describeTables(tbl.tableName)
+                    return dyanamoOps.describeTables(tbl.tableName)
                 elif argv[1] == 'create':
                     if len(argv) == 3:
                         tbl.logger.info(" Table {} creation started".format(tbl.tableName))
                         l = list(argv[2].split(','))
-                        tbl.createTable(*l)
+                        return tbl.createTable(*l)
                     else:
-                        tbl.logger.warn(
+                        tbl.logger.warning(
                             " Table {} creation started. default type selected i.e. with only partition key".format(
                                 tbl.tableName))
-                        tbl.createTable()
-                elif argv[1] == 'truncate':
+                        return tbl.createTable()
+                elif argv[1] == 'drop':
                     tbl.logger.info(" Table {} deletion started".format(tbl.tableName))
-                    tbl.truncateTable()
+                    return tbl.dropTable()
                 elif argv[1] == 'insert':
                     tbl.logger.info(" Table {} inserting data".format(tbl.tableName))
                     if len(argv) == 3:
-                        tbl.insertTable((argv[2].split(',')))
+                        return tbl.insertTable((argv[2].split(',')))
                     else:
                         tbl.logger.error(
                             " Table {} cannot be inserted into, no data provided. Type help for usage>".format(
@@ -258,9 +263,9 @@ def run(argv):
                 elif argv[1] == 'select':
                     tbl.logger.info(" Table {} selecting data".format(tbl.tableName))
                     if len(argv) == 3:
-                        tbl.selectTable(str(argv[2]))
+                        return tbl.selectTable(str(argv[2]))
                     else:
-                        tbl.selectTable()
+                        return tbl.selectTable()
                 else:
                     tbl.logger.warn(
                         " Incorrect operation given for table. Type help for usage")
