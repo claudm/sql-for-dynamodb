@@ -1,3 +1,10 @@
+#
+#
+#
+# THIS PROJECT IS NO LONGER MAINTAINED, AND HAS BEEN MOVED TO https://github.com/mannharleen/dynamodb_dataframes #
+#
+#
+#
 # sql-for-dynamodb
 
 ## Objective
