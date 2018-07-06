@@ -69,6 +69,8 @@ def runSql_API(l_sql_user_input=[]):
             runSqlHelp()
         elif l_sql_user_input[0] == 'show' and l_sql_user_input[1] == 'tables': # show tables
             return dynamodb_base_api.run(['list'])
+        elif l_sql_user_input[0] == 'describe' and len(l_sql_user_input) == 2: # describe table1ss
+            return dynamodb_base_api.run([l_sql_user_input[1], 'describe'])
         elif l_sql_user_input[0] == 'select' and l_sql_user_input[2] == 'from': # select
             l_parsed_text = []
             if l_sql_user_input[1] == '*':
@@ -93,7 +95,6 @@ def runSql_API(l_sql_user_input=[]):
                 l_parsed_col_vol.append(l_vals[x])
             parsed_col_vol = ','.join(l_parsed_col_vol)
             l_parsed_text = [l_sql_user_input[2], 'insert', parsed_col_vol]
-            #print (l_parsed_text)
             try:
                 return dynamodb_base_api.run(l_parsed_text)
             except:
